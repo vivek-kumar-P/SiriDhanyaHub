@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "334813446509",
+    "project_id": "siridhanyahub-2c46c",
+    "storage_bucket": "siridhanyahub-2c46c.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:334813446509:android:55d179d61fcb74e3c6da64",
+        "android_client_info": {
+          "package_name": "com.mindmatrix.siridhanyahub"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC4nBTYRXgqLOEzJCRJ7NcXjaZo2j4_9Bk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
