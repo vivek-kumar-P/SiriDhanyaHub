@@ -14,9 +14,11 @@ import kotlinx.coroutines.flow.stateIn
 
 data class SettingsUiState(
     val isLoggedIn: Boolean = false,
-    val userName: String = "Guest",
+    val userName: String = "",
     val userEmail: String = "",
-    val profile: UserProfileEntity? = null
+    val profile: UserProfileEntity? = null,
+    val role: String = "",
+    val showAnalytics: Boolean = false
 )
 
 @HiltViewModel
@@ -30,9 +32,11 @@ class SettingsViewModel @Inject constructor(
     ) { user, profile ->
         SettingsUiState(
             isLoggedIn = user != null,
-            userName = user?.name ?: "Guest",
+            userName = user?.name.orEmpty(),
             userEmail = user?.email.orEmpty(),
-            profile = profile
+            profile = profile,
+            role = profile?.role.orEmpty(),
+            showAnalytics = user != null
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SettingsUiState())
 

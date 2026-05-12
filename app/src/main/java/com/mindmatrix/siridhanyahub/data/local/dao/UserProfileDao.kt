@@ -17,4 +17,13 @@ interface UserProfileDao {
 
     @Query("SELECT * FROM user_profiles WHERE userId = :userId LIMIT 1")
     suspend fun getByUserId(userId: String): UserProfileEntity?
+
+    @Query("SELECT COUNT(*) FROM user_profiles WHERE contactNumber = :contactNumber AND userId != :userId")
+    suspend fun countByContactNumber(contactNumber: String, userId: String): Int
+
+    @Query("SELECT COUNT(*) FROM user_profiles WHERE aadhaarLast4 = :aadhaarLast4 AND userId != :userId")
+    suspend fun countByAadhaarLast4(aadhaarLast4: String, userId: String): Int
+
+    @Query("SELECT COUNT(*) FROM user_profiles WHERE pmKisanOrFarmerId = :farmerId AND userId != :userId")
+    suspend fun countByFarmerId(farmerId: String, userId: String): Int
 }

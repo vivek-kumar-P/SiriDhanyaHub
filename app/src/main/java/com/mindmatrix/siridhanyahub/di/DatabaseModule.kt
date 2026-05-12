@@ -2,6 +2,9 @@ package com.mindmatrix.siridhanyahub.di
 
 import android.content.Context
 import androidx.room.Room
+import com.mindmatrix.siridhanyahub.data.local.dao.ConsumerMilletRequestDao
+import com.mindmatrix.siridhanyahub.data.local.dao.FarmerRequestMatchDao
+import com.mindmatrix.siridhanyahub.data.local.dao.FarmerStockListingDao
 import com.mindmatrix.siridhanyahub.data.local.SiriDhanyaDatabase
 import com.mindmatrix.siridhanyahub.data.local.dao.FavouriteDao
 import com.mindmatrix.siridhanyahub.data.local.dao.FpoDao
@@ -55,4 +58,16 @@ object DatabaseModule {
     @Provides
     fun provideTransactionRecordDao(database: SiriDhanyaDatabase): TransactionRecordDao =
         database.transactionRecordDao()
+
+    @Provides
+    fun provideFarmerStockListingDao(database: SiriDhanyaDatabase): FarmerStockListingDao =
+        database.farmerStockListingDao()
+
+    @Provides
+    fun provideConsumerMilletRequestDao(database: SiriDhanyaDatabase): ConsumerMilletRequestDao =
+        database.consumerMilletRequestDao()
+
+    @Provides
+    fun provideFarmerRequestMatchDao(database: SiriDhanyaDatabase): FarmerRequestMatchDao =
+        database.farmerRequestMatchDao()
 }

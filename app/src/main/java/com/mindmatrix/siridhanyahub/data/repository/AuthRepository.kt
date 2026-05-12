@@ -16,9 +16,19 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 
+enum class PasswordStrength(val label: String) {
+    WEAK("Weak"),
+    MEDIUM("Medium"),
+    STRONG("Strong")
+}
+
 @Singleton
 class AuthRepository @Inject constructor() {
     private val auth: FirebaseAuth = Firebase.auth
+    private val gmailRegex = Regex("^[A-Za-z0-9._%+-]+@gmail\\.com$", RegexOption.IGNORE_CASE)
+    
+    // Strict password: At least 8 characters, 1 uppercase, 1 lowercase, 1 digit, 1 special character
+    private val strictPasswordRegex = Regex("^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@#\$%^&+=!]).{8,}\$")
 
     val currentUser: Flow<UserSession?> = callbackFlow {
         val listener = FirebaseAuth.AuthStateListener { firebaseAuth ->
@@ -32,9 +42,15 @@ class AuthRepository @Inject constructor() {
     }
 
     suspend fun register(name: String, email: String, password: String): Result<Unit> {
-        if (name.isBlank()) return Result.failure(IllegalArgumentException("Name is required"))
-        if (!email.contains("@")) return Result.failure(IllegalArgumentException("Enter a valid email"))
-        if (password.length < 8) return Result.failure(IllegalArgumentException("Password must be at least 8 characters"))
+        if (name.trim().length < 3) {
+            return Result.failure(IllegalArgumentException("Name must be at least 3 characters long"))
+        }
+        if (!isValidGmail(email)) {
+            return Result.failure(IllegalArgumentException("Registration is restricted to @gmail.com addresses for security verification"))
+        }
+        if (!strictPasswordRegex.matches(password)) {
+            return Result.failure(IllegalArgumentException("Password must be at least 8 characters long and include an uppercase letter, a lowercase letter, a digit, and a special character (@#\$%^&+=!)"))
+        }
 
         return runCatching {
             val result = auth.createUserWithEmailAndPassword(email.trim(), password).await()
@@ -50,14 +66,28 @@ class AuthRepository @Inject constructor() {
     }
 
     suspend fun login(email: String, password: String): Result<Unit> {
-        if (!email.contains("@")) return Result.failure(IllegalArgumentException("Enter a valid email"))
-        if (password.isBlank()) return Result.failure(IllegalArgumentException("Password is required"))
+        if (!isValidGmail(email)) {
+            return Result.failure(IllegalArgumentException("Please enter a valid @gmail.com address"))
+        }
+        if (password.isBlank()) {
+            return Result.failure(IllegalArgumentException("Password is required"))
+        }
 
         return runCatching {
             auth.signInWithEmailAndPassword(email.trim(), password).await()
             Unit
         }.recoverCatching { throwable ->
             throw mapFirebaseError(throwable)
+        }
+    }
+
+    fun isValidGmail(email: String): Boolean = gmailRegex.matches(email.trim())
+
+    fun passwordStrength(password: String): PasswordStrength {
+        return when {
+            strictPasswordRegex.matches(password) -> PasswordStrength.STRONG
+            password.length >= 8 -> PasswordStrength.MEDIUM
+            else -> PasswordStrength.WEAK
         }
     }
 
@@ -78,7 +108,7 @@ class AuthRepository @Inject constructor() {
     private fun mapFirebaseError(throwable: Throwable): Throwable {
         return when (throwable) {
             is FirebaseAuthUserCollisionException -> IllegalArgumentException("This email is already registered.")
-            is FirebaseAuthInvalidCredentialsException -> IllegalArgumentException("Invalid email or password format.")
+            is FirebaseAuthInvalidCredentialsException -> IllegalArgumentException("Invalid login credentials. Please check your password.")
             is FirebaseAuthInvalidUserException -> IllegalArgumentException("No account found for this email.")
             is FirebaseAuthException -> IllegalStateException(throwable.localizedMessage ?: "Firebase authentication failed.")
             else -> throwable

@@ -15,14 +15,17 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
-import com.mindmatrix.siridhanyahub.data.profile.UserRole
 import com.mindmatrix.siridhanyahub.ui.i18n.AppLanguage
+import com.mindmatrix.siridhanyahub.ui.screens.AboutScreen
 import com.mindmatrix.siridhanyahub.ui.screens.AnalyticsScreen
 import com.mindmatrix.siridhanyahub.ui.screens.AuthScreen
+import com.mindmatrix.siridhanyahub.ui.screens.ConsumerHomeScreen
 import com.mindmatrix.siridhanyahub.ui.screens.DirectBuyScreen
+import com.mindmatrix.siridhanyahub.ui.screens.FarmerHomeScreen
+import com.mindmatrix.siridhanyahub.ui.screens.FarmerRequestsScreen
 import com.mindmatrix.siridhanyahub.ui.screens.FavouritesScreen
+import com.mindmatrix.siridhanyahub.ui.screens.GuestHomeScreen
 import com.mindmatrix.siridhanyahub.ui.screens.HealthBenefitsScreen
-import com.mindmatrix.siridhanyahub.ui.screens.HomeDashboardScreen
 import com.mindmatrix.siridhanyahub.ui.screens.MandiWatchScreen
 import com.mindmatrix.siridhanyahub.ui.screens.ProfileSetupScreen
 import com.mindmatrix.siridhanyahub.ui.screens.RecipeLabScreen
@@ -63,14 +66,35 @@ fun SiriDhanyaNavHost(
         }
     ) {
         composable(AppRoute.Home.route) {
-            HomeDashboardScreen(
+            GuestHomeScreen(
                 onSettings = { navController.navigate(AppRoute.Settings.route) },
                 onMandi = { navController.navigate(AppRoute.Mandi.route) },
                 onRecipes = { navController.navigate(AppRoute.Recipes.route) },
                 onHealth = { navController.navigate(AppRoute.Health.route) },
+                onSaved = { navController.navigate(AppRoute.Saved.route) },
+                onProfileSetup = { navController.navigate(AppRoute.Auth.createRoute(AppRoute.ProfileSetup.route)) }
+            )
+        }
+
+        composable(AppRoute.FarmerHome.route) {
+            FarmerHomeScreen(
+                onSettings = { navController.navigate(AppRoute.Settings.route) },
+                onMandi = { navController.navigate(AppRoute.Mandi.route) },
+                onRecipes = { navController.navigate(AppRoute.Recipes.route) },
+                onHealth = { navController.navigate(AppRoute.Health.route) },
+                onFarmerRequests = { protectedNavigate(AppRoute.FarmerRequests.route) },
+                onProfileSetup = { navController.navigate(AppRoute.ProfileSetup.route) }
+            )
+        }
+
+        composable(AppRoute.ConsumerHome.route) {
+            ConsumerHomeScreen(
+                onSettings = { navController.navigate(AppRoute.Settings.route) },
                 onBuy = { protectedNavigate(AppRoute.Buy.route) },
-                onSaved = { protectedNavigate(AppRoute.Saved.route) },
-                onRoleSetup = { role -> navController.navigate(AppRoute.ProfileSetup.createRoute(role)) }
+                onRecipes = { navController.navigate(AppRoute.Recipes.route) },
+                onHealth = { navController.navigate(AppRoute.Health.route) },
+                onSaved = { navController.navigate(AppRoute.Saved.route) },
+                onProfileSetup = { navController.navigate(AppRoute.ProfileSetup.route) }
             )
         }
 
@@ -79,8 +103,10 @@ fun SiriDhanyaNavHost(
                 language = language,
                 onLanguageChange = onLanguageChange,
                 onBack = { navController.popBackStack() },
-                onAuth = { navController.navigate(AppRoute.Auth.createRoute()) },
-                onAnalytics = { protectedNavigate(AppRoute.Analytics.route) }
+                onAuth = { navController.navigate(AppRoute.Auth.createRoute(AppRoute.ProfileSetup.route)) },
+                onEditProfile = { navController.navigate(AppRoute.ProfileSetup.route) },
+                onAnalytics = { protectedNavigate(AppRoute.Analytics.route) },
+                onAbout = { navController.navigate(AppRoute.About.route) }
             )
         }
 
@@ -97,9 +123,15 @@ fun SiriDhanyaNavHost(
             val redirect = backStackEntry.arguments?.getString("redirect")
             AuthScreen(
                 language = language,
-                onEnterApp = {
-                    if (!redirect.isNullOrBlank()) {
-                        navController.navigate(Uri.decode(redirect)) {
+                onBack = { navController.popBackStack() },
+                onEnterApp = { resolvedRoute ->
+                    val nextRoute = if (resolvedRoute == AppRoute.ProfileSetup.route) {
+                        resolvedRoute
+                    } else {
+                        redirect ?: resolvedRoute
+                    }
+                    if (!nextRoute.isNullOrBlank()) {
+                        navController.navigate(Uri.decode(nextRoute)) {
                             popUpTo(AppRoute.Auth.route) { inclusive = true }
                         }
                     } else {
@@ -109,37 +141,59 @@ fun SiriDhanyaNavHost(
             )
         }
 
-        composable(
-            route = AppRoute.ProfileSetup.route,
-            arguments = listOf(navArgument("role") { type = NavType.StringType })
-        ) { backStackEntry ->
-            val role = UserRole.fromValue(backStackEntry.arguments?.getString("role")) ?: UserRole.CONSUMER
+        composable(AppRoute.ProfileSetup.route) {
             ProfileSetupScreen(
-                role = role,
                 onBack = { navController.popBackStack() },
-                onAuthRequired = { navController.navigate(AppRoute.Auth.createRoute(AppRoute.ProfileSetup.createRoute(role))) },
-                onSaved = { navController.popBackStack() }
+                onAuthRequired = { navController.navigate(AppRoute.Auth.createRoute(AppRoute.ProfileSetup.route)) },
+                onSaved = { isFarmer ->
+                    navController.navigate(if (isFarmer) AppRoute.FarmerHome.route else AppRoute.ConsumerHome.route) {
+                        popUpTo(AppRoute.ProfileSetup.route) { inclusive = true }
+                    }
+                }
             )
         }
 
         composable(AppRoute.Mandi.route) {
-            MandiWatchScreen(language = language)
+            MandiWatchScreen(
+                language = language,
+                onBack = { navController.popBackStack() }
+            )
         }
 
         composable(AppRoute.Recipes.route) {
-            RecipeLabScreen(language = language)
+            RecipeLabScreen(
+                language = language,
+                onBack = { navController.popBackStack() }
+            )
         }
 
         composable(AppRoute.Health.route) {
-            HealthBenefitsScreen(language = language)
+            HealthBenefitsScreen(
+                language = language,
+                onBack = { navController.popBackStack() }
+            )
         }
 
         composable(AppRoute.Buy.route) {
-            DirectBuyScreen(language = language)
+            DirectBuyScreen(
+                language = language,
+                onBack = { navController.popBackStack() }
+            )
         }
 
         composable(AppRoute.Saved.route) {
-            FavouritesScreen(language = language)
+            FavouritesScreen(
+                language = language,
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(AppRoute.FarmerRequests.route) {
+            FarmerRequestsScreen(onBack = { navController.popBackStack() })
+        }
+
+        composable(AppRoute.About.route) {
+            AboutScreen(onBack = { navController.popBackStack() })
         }
 
         composable(AppRoute.Analytics.route) {

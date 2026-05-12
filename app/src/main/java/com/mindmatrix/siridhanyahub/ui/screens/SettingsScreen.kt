@@ -40,7 +40,9 @@ fun SettingsScreen(
     onLanguageChange: (AppLanguage) -> Unit,
     onBack: () -> Unit,
     onAuth: () -> Unit,
+    onEditProfile: () -> Unit,
     onAnalytics: () -> Unit,
+    onAbout: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -71,19 +73,27 @@ fun SettingsScreen(
         ) {
             item {
                 Column(modifier = Modifier.fillMaxWidth()) {
-                    Text(
-                        text = if (state.isLoggedIn) state.userName else "Guest mode",
-                        style = MaterialTheme.typography.headlineSmall
-                    )
-                    Text(
-                        text = if (state.isLoggedIn) state.userEmail else "Login from here to unlock buy, saved, and analytics.",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                    state.profile?.let { profile ->
+                    if (state.isLoggedIn) {
                         Text(
-                            text = "${profile.role.lowercase().replaceFirstChar(Char::titlecase)} • ${profile.district} • ${profile.primaryMillet}",
-                            style = MaterialTheme.typography.bodySmall,
-                            modifier = Modifier.padding(top = 6.dp)
+                            text = state.userName,
+                            style = MaterialTheme.typography.headlineSmall
+                        )
+                        Text(
+                            text = state.userEmail,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        state.profile?.let { profile ->
+                            Text(
+                                text = "${profile.role.lowercase().replaceFirstChar(Char::titlecase)} | ${profile.district} | ${profile.contactNumber}",
+                                style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier.padding(top = 6.dp)
+                            )
+                        }
+                    } else {
+                        Text("Guest mode", style = MaterialTheme.typography.headlineSmall)
+                        Text(
+                            text = "Login to create a farmer or consumer account profile.",
+                            style = MaterialTheme.typography.bodyMedium
                         )
                     }
                 }
@@ -92,16 +102,12 @@ fun SettingsScreen(
                 SettingsRow(
                     icon = Icons.Default.Person,
                     title = if (state.isLoggedIn) "Account profile" else "Login / Signup",
-                    subtitle = if (state.isLoggedIn) "Manage your account details and saved profile." else "Authenticate to unlock gated features.",
-                    onClick = onAuth
-                )
-            }
-            item {
-                SettingsRow(
-                    icon = Icons.Default.Analytics,
-                    title = "User analytics",
-                    subtitle = if (state.isLoggedIn) "View transaction trends and your recent activity." else "Login required before opening analytics.",
-                    onClick = onAnalytics
+                    subtitle = if (state.isLoggedIn) {
+                        "Edit your saved farmer or consumer details."
+                    } else {
+                        "Authenticate first, then complete the mandatory role profile."
+                    },
+                    onClick = if (state.isLoggedIn) onEditProfile else onAuth
                 )
             }
             item {
@@ -112,12 +118,22 @@ fun SettingsScreen(
                     onClick = { onLanguageChange(language.next()) }
                 )
             }
+            if (state.showAnalytics) {
+                item {
+                    SettingsRow(
+                        icon = Icons.Default.Analytics,
+                        title = "User analytics",
+                        subtitle = "Open your account activity and charts.",
+                        onClick = onAnalytics
+                    )
+                }
+            }
             item {
                 SettingsRow(
                     icon = Icons.Default.Info,
                     title = "About",
-                    subtitle = "A millet discovery and trading companion for farmers and consumers.",
-                    onClick = {}
+                    subtitle = "See the story, purpose, and playful feature walkthrough of the app.",
+                    onClick = onAbout
                 )
             }
             if (state.isLoggedIn) {
@@ -125,7 +141,7 @@ fun SettingsScreen(
                     SettingsRow(
                         icon = Icons.AutoMirrored.Filled.Logout,
                         title = "Logout",
-                        subtitle = "Return to browse mode while keeping the app open.",
+                        subtitle = "Sign out and return to browse mode.",
                         onClick = viewModel::logout
                     )
                 }
@@ -134,7 +150,7 @@ fun SettingsScreen(
                     SettingsRow(
                         icon = Icons.Default.Lock,
                         title = "Browse mode",
-                        subtitle = "You can continue using market, recipe, and health sections without logging in.",
+                        subtitle = "You can still browse Mandi Watch, Recipes, and Health without logging in.",
                         onClick = {}
                     )
                 }

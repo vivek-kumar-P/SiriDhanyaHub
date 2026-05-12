@@ -2,71 +2,101 @@ package com.mindmatrix.siridhanyahub.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.mindmatrix.siridhanyahub.data.local.entity.FpoEntity
+import com.mindmatrix.siridhanyahub.data.local.entity.ConsumerMilletRequestEntity
 import com.mindmatrix.siridhanyahub.data.profile.UserRole
-import com.mindmatrix.siridhanyahub.data.repository.DirectBuyRepository
-import com.mindmatrix.siridhanyahub.data.repository.TransactionRepository
+import com.mindmatrix.siridhanyahub.data.repository.ConsumerRequestDraft
+import com.mindmatrix.siridhanyahub.data.repository.MarketplaceRepository
 import com.mindmatrix.siridhanyahub.data.repository.UserProfileRepository
-import com.mindmatrix.siridhanyahub.data.transaction.TransactionType
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalCoroutinesApi::class)
+data class ConsumerRequestUiState(
+    val draft: ConsumerRequestDraft = ConsumerRequestDraft(),
+    val activeRole: UserRole? = null,
+    val activeRequest: ConsumerMilletRequestEntity? = null,
+    val isSaving: Boolean = false,
+    val message: String? = null
+)
+
 @HiltViewModel
 class DirectBuyViewModel @Inject constructor(
-    private val directBuyRepository: DirectBuyRepository,
-    userProfileRepository: UserProfileRepository,
-    private val transactionRepository: TransactionRepository
+    private val marketplaceRepository: MarketplaceRepository,
+    userProfileRepository: UserProfileRepository
 ) : ViewModel() {
-    private val _selectedFpoId = MutableStateFlow<Int?>(null)
-    val selectedFpoId: StateFlow<Int?> = _selectedFpoId.asStateFlow()
-    private val _message = MutableSharedFlow<String>()
-    val message = _message
+    private val isSaving = MutableStateFlow(false)
+    private val message = MutableStateFlow<String?>(null)
 
-    val fpos: StateFlow<List<FpoEntity>> = directBuyRepository.observeAll()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    val uiState: StateFlow<ConsumerRequestUiState> = combine(
+        marketplaceRepository.consumerDraft,
+        marketplaceRepository.activeConsumerRequest,
+        userProfileRepository.activeProfile.map { UserRole.fromValue(it?.role) },
+        isSaving,
+        message
+    ) { draft, request, role, isSaving, message ->
+        ConsumerRequestUiState(
+            draft = draft,
+            activeRole = role,
+            activeRequest = request,
+            isSaving = isSaving,
+            message = message
+        )
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ConsumerRequestUiState())
 
-    val selectedFpo: StateFlow<FpoEntity?> = _selectedFpoId
-        .flatMapLatest { fpoId ->
-            if (fpoId == null) flowOf(null) else directBuyRepository.observeById(fpoId)
-        }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
-
-    val activeRole: StateFlow<UserRole?> = userProfileRepository.activeProfile
-        .map { UserRole.fromValue(it?.role) }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
-
-    fun openFpo(fpoId: Int) {
-        _selectedFpoId.value = fpoId
-    }
-
-    fun closeFpo() {
-        _selectedFpoId.value = null
-    }
-
-    fun requestToBuy(quantityKg: Int = 100) {
-        val fpo = selectedFpo.value ?: return
+    init {
         viewModelScope.launch {
-            val result = transactionRepository.record(
-                role = activeRole.value ?: UserRole.CONSUMER,
-                type = TransactionType.BUY,
-                milletType = fpo.availableMillets.substringBefore(","),
-                quantityKg = quantityKg,
-                counterpartyName = fpo.fpoName,
-                referenceContext = fpo.district
-            )
-            _message.emit(result.exceptionOrNull()?.message ?: "Buy request recorded")
+            marketplaceRepository.hydrateConsumerDraft(marketplaceRepository.loadActiveRequestForCurrentUser())
+        }
+    }
+
+    fun updateMilletType(value: String) =
+        marketplaceRepository.updateConsumerDraft { it.copy(milletType = value) }
+
+    fun updateQuantity(value: String) =
+        marketplaceRepository.updateConsumerDraft { it.copy(quantityKg = value) }
+
+    fun updateNeededDate(value: String) =
+        marketplaceRepository.updateConsumerDraft { it.copy(neededDate = value) }
+
+    fun updateNeededTime(value: String) =
+        marketplaceRepository.updateConsumerDraft { it.copy(neededTime = value) }
+
+    fun updateLocation(value: String) =
+        marketplaceRepository.updateConsumerDraft { it.copy(consumerLocation = value) }
+
+    fun updatePreferredSourceLocation(value: String) =
+        marketplaceRepository.updateConsumerDraft { it.copy(preferredSourceLocation = value) }
+
+    fun updatePurpose(value: String) =
+        marketplaceRepository.updateConsumerDraft { it.copy(purpose = value) }
+
+    fun saveRequest(onSaved: () -> Unit) {
+        viewModelScope.launch {
+            isSaving.value = true
+            val result = marketplaceRepository.saveConsumerRequest()
+            isSaving.value = false
+            message.value = result.exceptionOrNull()?.message ?: "Request is now active for nearby farmers"
+            if (result.isSuccess) onSaved()
+        }
+    }
+
+    fun markFulfilled() {
+        viewModelScope.launch {
+            val result = marketplaceRepository.markActiveRequestFulfilled()
+            message.value = result.exceptionOrNull()?.message ?: "Request marked as fulfilled"
+        }
+    }
+
+    fun deleteRequest() {
+        viewModelScope.launch {
+            val result = marketplaceRepository.deleteActiveRequest()
+            message.value = result.exceptionOrNull()?.message ?: "Request deleted"
         }
     }
 }

@@ -1,92 +1,167 @@
 package com.mindmatrix.siridhanyahub.ui.screens
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.AlertDialog
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.mindmatrix.siridhanyahub.data.local.entity.FpoEntity
+import com.mindmatrix.siridhanyahub.data.profile.UserRole
 import com.mindmatrix.siridhanyahub.ui.i18n.AppLanguage
 import com.mindmatrix.siridhanyahub.ui.theme.WheatSurface
 import com.mindmatrix.siridhanyahub.viewmodel.DirectBuyViewModel
 
+private val milletOptions = listOf("Ragi", "Jowar", "Bajra", "Foxtail Millet", "Little Millet", "Barnyard Millet")
+private val sourceLocations = listOf("Bengaluru", "Davangere", "Mysuru", "Hubli", "Mandya", "Tumakuru", "Shivamogga")
+private val purposes = listOf("Marriage", "Family function", "Community gathering", "Restaurant", "Retail", "Personal use")
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DirectBuyScreen(
     language: AppLanguage,
+    onBack: () -> Unit,
     viewModel: DirectBuyViewModel = hiltViewModel()
 ) {
-    val fpos by viewModel.fpos.collectAsStateWithLifecycle()
-    val selectedFpo by viewModel.selectedFpo.collectAsStateWithLifecycle()
-    var feedback by remember { mutableStateOf<String?>(null) }
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val activeRequest = state.activeRequest
+    val quantity = state.draft.quantityKg.toIntOrNull() ?: 0
 
-    LaunchedEffect(Unit) {
-        viewModel.message.collect { feedback = it }
-    }
-
-    if (selectedFpo != null) {
-        DirectBuyDetailScreen(
-            language = language,
-            fpo = selectedFpo!!,
-            feedback = feedback,
-            onConsumeFeedback = { feedback = null },
-            onRequest = viewModel::requestToBuy,
-            onBack = viewModel::closeFpo
-        )
-        return
-    }
-
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        item {
-            Text("Direct Buy", style = MaterialTheme.typography.headlineSmall)
-            Text(
-                text = "Browse FPOs and create buyer-side requests once you are logged in.",
-                style = MaterialTheme.typography.bodyLarge,
-                modifier = Modifier.padding(top = 6.dp, bottom = 8.dp)
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Buy millets from real farmers") },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
+                    }
+                }
             )
         }
-        items(fpos, key = { it.id }) { fpo ->
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { viewModel.openFpo(fpo.id) },
-                colors = CardDefaults.cardColors(containerColor = WheatSurface)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(fpo.fpoName, style = MaterialTheme.typography.titleLarge)
-                    Text(fpo.district, style = MaterialTheme.typography.bodyLarge)
-                    Text(
-                        text = "Millets: ${fpo.availableMillets}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.padding(top = 6.dp)
+    ) { innerPadding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            item {
+                Text(
+                    "Raise one active request. Nearby farmers with live stock in the same or nearby mandi areas will see it in their in-app request page.",
+                    style = MaterialTheme.typography.bodyLarge
+                )
+            }
+            if (state.activeRole != UserRole.CONSUMER) {
+                item {
+                    Text("This page is only for consumer accounts.", style = MaterialTheme.typography.bodyLarge)
+                }
+            } else {
+                item {
+                    if (activeRequest != null) {
+                        Card(colors = CardDefaults.cardColors(containerColor = WheatSurface)) {
+                            Column(
+                                modifier = Modifier.padding(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Text("Active request", style = MaterialTheme.typography.titleLarge)
+                                Text("${activeRequest.milletType} - ${activeRequest.quantityKg}kg", style = MaterialTheme.typography.bodyLarge)
+                                Text("Location: ${activeRequest.consumerLocation}", style = MaterialTheme.typography.bodyMedium)
+                                Text("Source preference: ${activeRequest.preferredSourceLocation}", style = MaterialTheme.typography.bodyMedium)
+                                OutlinedButton(onClick = viewModel::markFulfilled) {
+                                    Text("Mark fulfilled")
+                                }
+                                OutlinedButton(onClick = viewModel::deleteRequest) {
+                                    Text("Delete request")
+                                }
+                            }
+                        }
+                    }
+                }
+                item {
+                    SelectionField("Type of millet needed", state.draft.milletType, milletOptions, viewModel::updateMilletType)
+                }
+                item {
+                    OutlinedTextField(
+                        value = state.draft.quantityKg,
+                        onValueChange = viewModel::updateQuantity,
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Quantity needed (kg)") }
                     )
-                    Text(
-                        text = directBuyPrompt(language),
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.padding(top = 8.dp)
+                }
+                item {
+                    OutlinedTextField(
+                        value = state.draft.neededDate,
+                        onValueChange = viewModel::updateNeededDate,
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Date needed (YYYY-MM-DD)") }
                     )
+                }
+                item {
+                    OutlinedTextField(
+                        value = state.draft.neededTime,
+                        onValueChange = viewModel::updateNeededTime,
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Time needed (HH:MM)") }
+                    )
+                }
+                item {
+                    OutlinedTextField(
+                        value = state.draft.consumerLocation,
+                        onValueChange = viewModel::updateLocation,
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Your location / city") }
+                    )
+                }
+                item {
+                    SelectionField(
+                        title = "From where do you want to buy millets?",
+                        selected = state.draft.preferredSourceLocation,
+                        options = sourceLocations,
+                        onSelect = viewModel::updatePreferredSourceLocation
+                    )
+                }
+                if (quantity > 100) {
+                    item {
+                        SelectionField(
+                            title = "Purpose of requirement",
+                            selected = state.draft.purpose,
+                            options = purposes,
+                            onSelect = viewModel::updatePurpose
+                        )
+                    }
+                }
+                item {
+                    state.message?.let {
+                        Text(it, style = MaterialTheme.typography.bodyMedium)
+                    }
+                    Button(
+                        onClick = { viewModel.saveRequest {} },
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !state.isSaving
+                    ) {
+                        Text(if (state.isSaving) "Saving..." else "Save request")
+                    }
                 }
             }
         }
@@ -94,81 +169,28 @@ fun DirectBuyScreen(
 }
 
 @Composable
-private fun DirectBuyDetailScreen(
-    language: AppLanguage,
-    fpo: FpoEntity,
-    feedback: String?,
-    onConsumeFeedback: () -> Unit,
-    onRequest: () -> Unit,
-    onBack: () -> Unit
+private fun SelectionField(
+    title: String,
+    selected: String,
+    options: List<String>,
+    onSelect: (String) -> Unit
 ) {
-    if (feedback != null) {
-        AlertDialog(
-            onDismissRequest = onConsumeFeedback,
-            confirmButton = {
-                TextButton(onClick = onConsumeFeedback) {
-                    Text(okLabel(language))
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(title, style = MaterialTheme.typography.titleMedium)
+        options.chunked(2).forEach { row ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                row.forEach { option ->
+                    OutlinedButton(
+                        onClick = { onSelect(option) },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(if (selected == option) "$option *" else option)
+                    }
                 }
-            },
-            title = { Text(requestSentLabel(language)) },
-            text = { Text(feedback) }
-        )
-    }
-
-    Column(modifier = Modifier.fillMaxSize()) {
-        OutlinedButton(onClick = onBack) {
-            Text(backToFpoLabel(language))
-        }
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 16.dp),
-            colors = CardDefaults.cardColors(containerColor = WheatSurface)
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text(fpo.fpoName, style = MaterialTheme.typography.headlineSmall)
-                Text(fpo.district, style = MaterialTheme.typography.titleMedium)
-                Text("Address: ${fpo.address}", modifier = Modifier.padding(top = 10.dp))
-                Text("Phone: ${fpo.phone}", modifier = Modifier.padding(top = 6.dp))
-                Text("Millets: ${fpo.availableMillets}", modifier = Modifier.padding(top = 6.dp))
-                Text("Available: ${fpo.availableQuantityKg} kg", modifier = Modifier.padding(top = 6.dp))
             }
         }
-        OutlinedButton(
-            onClick = onRequest,
-            modifier = Modifier.padding(top = 16.dp)
-        ) {
-            Text(requestToBuyLabel(language))
-        }
     }
-}
-
-private fun directBuyPrompt(language: AppLanguage): String = when (language) {
-    AppLanguage.ENGLISH -> "Tap to view contact and request flow"
-    AppLanguage.KANNADA -> "ಸಂಪರ್ಕ ಮತ್ತು ವಿನಂತಿ ವಿವರಗಳನ್ನು ನೋಡಲು ತಟ್ಟಿರಿ"
-    AppLanguage.HINDI -> "संपर्क और अनुरोध विवरण देखने के लिए टैप करें"
-}
-
-private fun okLabel(language: AppLanguage): String = when (language) {
-    AppLanguage.ENGLISH -> "OK"
-    AppLanguage.KANNADA -> "ಸರಿ"
-    AppLanguage.HINDI -> "ठीक है"
-}
-
-private fun requestSentLabel(language: AppLanguage): String = when (language) {
-    AppLanguage.ENGLISH -> "Request recorded"
-    AppLanguage.KANNADA -> "ವಿನಂತಿ ದಾಖಲಿಸಲಾಗಿದೆ"
-    AppLanguage.HINDI -> "अनुरोध दर्ज किया गया"
-}
-
-private fun backToFpoLabel(language: AppLanguage): String = when (language) {
-    AppLanguage.ENGLISH -> "Back to FPO list"
-    AppLanguage.KANNADA -> "FPO ಪಟ್ಟಿಗೆ ಹಿಂತಿರುಗಿ"
-    AppLanguage.HINDI -> "FPO सूची पर वापस जाएँ"
-}
-
-private fun requestToBuyLabel(language: AppLanguage): String = when (language) {
-    AppLanguage.ENGLISH -> "Request to Buy"
-    AppLanguage.KANNADA -> "ಖರೀದಿ ವಿನಂತಿ"
-    AppLanguage.HINDI -> "खरीद अनुरोध"
 }
