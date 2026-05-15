@@ -6,6 +6,7 @@ import com.mindmatrix.siridhanyahub.data.local.dao.ConsumerMilletRequestDao
 import com.mindmatrix.siridhanyahub.data.local.dao.FarmerRequestMatchDao
 import com.mindmatrix.siridhanyahub.data.local.dao.FarmerStockListingDao
 import com.mindmatrix.siridhanyahub.data.local.dao.FavouriteDao
+import com.mindmatrix.siridhanyahub.data.local.dao.FeedbackDao
 import com.mindmatrix.siridhanyahub.data.local.dao.FpoDao
 import com.mindmatrix.siridhanyahub.data.local.dao.HealthBenefitDao
 import com.mindmatrix.siridhanyahub.data.local.dao.PriceDao
@@ -16,6 +17,7 @@ import com.mindmatrix.siridhanyahub.data.local.entity.ConsumerMilletRequestEntit
 import com.mindmatrix.siridhanyahub.data.local.entity.FarmerRequestMatchEntity
 import com.mindmatrix.siridhanyahub.data.local.entity.FarmerStockListingEntity
 import com.mindmatrix.siridhanyahub.data.local.entity.FavouriteEntity
+import com.mindmatrix.siridhanyahub.data.local.entity.FeedbackEntity
 import com.mindmatrix.siridhanyahub.data.local.entity.FpoEntity
 import com.mindmatrix.siridhanyahub.data.local.entity.HealthBenefitEntity
 import com.mindmatrix.siridhanyahub.data.local.entity.PriceEntity
@@ -34,9 +36,10 @@ import com.mindmatrix.siridhanyahub.data.local.entity.UserProfileEntity
         TransactionRecordEntity::class,
         FarmerStockListingEntity::class,
         ConsumerMilletRequestEntity::class,
-        FarmerRequestMatchEntity::class
+        FarmerRequestMatchEntity::class,
+        FeedbackEntity::class
     ],
-    version = 4,
+    version = 6,
     exportSchema = false
 )
 abstract class SiriDhanyaDatabase : RoomDatabase() {
@@ -50,6 +53,7 @@ abstract class SiriDhanyaDatabase : RoomDatabase() {
     abstract fun farmerStockListingDao(): FarmerStockListingDao
     abstract fun consumerMilletRequestDao(): ConsumerMilletRequestDao
     abstract fun farmerRequestMatchDao(): FarmerRequestMatchDao
+    abstract fun feedbackDao(): FeedbackDao
 
     companion object {
         const val DATABASE_NAME = "siri_dhanya_hub.db"

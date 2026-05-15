@@ -43,8 +43,9 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mindmatrix.siridhanyahub.data.local.entity.ConsumerMilletRequestEntity
-import com.mindmatrix.siridhanyahub.data.profile.UserRole
 import com.mindmatrix.siridhanyahub.ui.components.FeatureCard
+import com.mindmatrix.siridhanyahub.ui.i18n.AppLanguage
+import com.mindmatrix.siridhanyahub.ui.i18n.AppText
 import com.mindmatrix.siridhanyahub.ui.theme.ForestGreen
 import com.mindmatrix.siridhanyahub.ui.theme.HarvestAmber
 import com.mindmatrix.siridhanyahub.ui.theme.SoilGrey
@@ -63,6 +64,7 @@ data class HomeFeature(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GuestHomeScreen(
+    language: AppLanguage,
     onSettings: () -> Unit,
     onMandi: () -> Unit,
     onRecipes: () -> Unit,
@@ -71,28 +73,30 @@ fun GuestHomeScreen(
     onProfileSetup: () -> Unit
 ) {
     val features = listOf(
-        HomeFeature("Mandi Watch", "Browse market rates before signing in", Icons.AutoMirrored.Filled.ShowChart, ForestGreen, onMandi),
-        HomeFeature("Recipe Lab", "Explore millet meals and quick cooking ideas", Icons.Default.LocalFlorist, HarvestAmber, onRecipes),
-        HomeFeature("Health Benefits", "Understand millet nutrition in a friendlier way", Icons.Default.MedicalServices, TerracottaRed, onHealth),
-        HomeFeature("Saved Recipes", "Open saved ideas whenever you want", Icons.AutoMirrored.Filled.Assignment, SoilGrey, onSaved)
+        HomeFeature(AppText.mandiWatch(language), AppText.mandiWatchSubGuest(language), Icons.AutoMirrored.Filled.ShowChart, ForestGreen, onMandi),
+        HomeFeature(AppText.recipeLab(language), AppText.recipeLabSub(language), Icons.Default.LocalFlorist, HarvestAmber, onRecipes),
+        HomeFeature(AppText.healthBenefits(language), AppText.healthBenefitsSub(language), Icons.Default.MedicalServices, TerracottaRed, onHealth),
+        HomeFeature(AppText.savedRecipes(language), AppText.savedRecipesSub(language), Icons.AutoMirrored.Filled.Assignment, SoilGrey, onSaved)
     )
     BaseHomeScreen(
-        title = "Siri-Dhanya Hub",
-        subtitle = "Browse first, then login only when you want to become a farmer seller or a real millet buyer.",
+        title = AppText.guestTitle(language),
+        subtitle = AppText.guestSubtitle(language),
         chip = null,
         features = features,
         onSettings = onSettings,
         primaryAction = {
             Button(onClick = onProfileSetup, modifier = Modifier.fillMaxWidth()) {
-                Text("Login / Signup and complete profile")
+                Text(AppText.guestLoginButton(language))
             }
-        }
+        },
+        quickActionsLabel = AppText.quickActions(language)
     )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FarmerHomeScreen(
+    language: AppLanguage,
     onSettings: () -> Unit,
     onMandi: () -> Unit,
     onRecipes: () -> Unit,
@@ -104,15 +108,20 @@ fun FarmerHomeScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val listing = state.farmerListing
     val features = listOf(
-        HomeFeature("Mandi Watch", "Check mandi prices and publish or refresh your stock", Icons.AutoMirrored.Filled.ShowChart, ForestGreen, onMandi),
-        HomeFeature("Farmer Requests", "See nearby consumer requests and contact them outside the app", Icons.Default.NotificationsActive, TerracottaRed, onFarmerRequests),
-        HomeFeature("Recipe Lab", "Use recipe ideas to understand use-cases for your millets", Icons.Default.LocalFlorist, HarvestAmber, onRecipes),
-        HomeFeature("Health Benefits", "Know the nutrition story behind the millet you grow", Icons.Default.MedicalServices, SoilGrey, onHealth)
+        HomeFeature(AppText.mandiWatch(language), AppText.mandiWatchTitle(language), Icons.AutoMirrored.Filled.ShowChart, ForestGreen, onMandi),
+        HomeFeature(AppText.farmerRequests(language), AppText.farmerRequestsSub(language), Icons.Default.NotificationsActive, TerracottaRed, onFarmerRequests),
+        HomeFeature(AppText.recipeLab(language), AppText.recipeLabSub(language), Icons.Default.LocalFlorist, HarvestAmber, onRecipes),
+        HomeFeature(AppText.healthBenefits(language), AppText.healthBenefitsSub(language), Icons.Default.MedicalServices, SoilGrey, onHealth)
     )
     BaseHomeScreen(
-        title = "Farmer Home",
-        subtitle = "Welcome back, ${state.activeProfile?.fullName.orEmpty()}. Publish stock, watch mandi trends, and track buyer interest from one place.",
-        chip = "Profile ready - ${state.activeProfile?.stockStatus ?: "READY_FOR_STOCK"}",
+        title = AppText.farmerHomeTitle(language),
+        subtitle = AppText.farmerHomeSubtitle(language, state.activeProfile?.fullName.orEmpty()),
+        chip = when (state.activeProfile?.stockStatus) {
+            "PENDING_VERIFICATION" -> "⏳ Account pending admin verification"
+            "STOCK_AVAILABLE" -> "✓ Stock published and visible"
+            "READY_FOR_STOCK" -> AppText.publishFirstStock(language)
+            else -> "Profile active"
+        },
         features = features,
         onSettings = onSettings,
         primaryAction = {
@@ -124,26 +133,28 @@ fun FarmerHomeScreen(
                     )
                     OutlinedButton(onClick = onMandi) {
                         Icon(Icons.Default.CheckCircle, contentDescription = null)
-                        Text("Update stock status", modifier = Modifier.padding(start = 8.dp))
+                        Text(AppText.updateStockStatus(language), modifier = Modifier.padding(start = 8.dp))
                     }
                 }
             } else {
                 Button(onClick = onMandi, modifier = Modifier.fillMaxWidth()) {
-                    Text("Publish your first stock")
+                    Text(AppText.publishFirstStock(language))
                 }
             }
         },
         secondaryAction = {
             OutlinedButton(onClick = onProfileSetup, modifier = Modifier.fillMaxWidth()) {
-                Text("Edit farmer details")
+                Text(AppText.editFarmerDetails(language))
             }
-        }
+        },
+        quickActionsLabel = AppText.quickActions(language)
     )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ConsumerHomeScreen(
+    language: AppLanguage,
     onSettings: () -> Unit,
     onBuy: () -> Unit,
     onRecipes: () -> Unit,
@@ -163,6 +174,7 @@ fun ConsumerHomeScreen(
 
     if (showActiveRequestDialog && activeRequest != null) {
         ActiveRequestDialog(
+            language = language,
             request = activeRequest,
             onDismiss = { showActiveRequestDialog = false },
             onViewRequest = {
@@ -181,28 +193,29 @@ fun ConsumerHomeScreen(
     }
 
     val features = listOf(
-        HomeFeature("Buy from Real Farmers", "Raise a millet request and let nearby farmers notice it", Icons.Default.ShoppingCart, ForestGreen, onBuy),
-        HomeFeature("Recipe Lab", "Try millet dishes and save your favourite ones", Icons.Default.LocalFlorist, HarvestAmber, onRecipes),
-        HomeFeature("Health Benefits", "Explore wellness and nutrition benefits millet by millet", Icons.Default.MedicalServices, TerracottaRed, onHealth),
-        HomeFeature("Saved Recipes", "Keep your favourite recipes ready for later", Icons.AutoMirrored.Filled.Assignment, SoilGrey, onSaved)
+        HomeFeature(AppText.buyFromFarmers(language), AppText.buyFromFarmersSub(language), Icons.Default.ShoppingCart, ForestGreen, onBuy),
+        HomeFeature(AppText.recipeLab(language), AppText.recipeLabSub(language), Icons.Default.LocalFlorist, HarvestAmber, onRecipes),
+        HomeFeature(AppText.healthBenefits(language), AppText.healthBenefitsSub(language), Icons.Default.MedicalServices, TerracottaRed, onHealth),
+        HomeFeature(AppText.savedRecipes(language), AppText.savedRecipesSub(language), Icons.AutoMirrored.Filled.Assignment, SoilGrey, onSaved)
     )
 
     BaseHomeScreen(
-        title = "Consumer Home",
-        subtitle = "Welcome back, ${state.activeProfile?.fullName.orEmpty()}. Find recipes, learn health value, and request millets from real nearby farmers.",
+        title = AppText.consumerHomeTitle(language),
+        subtitle = AppText.consumerHomeSubtitle(language, state.activeProfile?.fullName.orEmpty()),
         chip = "Profile ready - ${state.activeProfile?.stockStatus ?: "READY_TO_BUY"}",
         features = features,
         onSettings = onSettings,
         primaryAction = {
             Button(onClick = onBuy, modifier = Modifier.fillMaxWidth()) {
-                Text(if (activeRequest == null) "Raise a millet request" else "View active millet request")
+                Text(if (activeRequest == null) AppText.raiseRequest(language) else AppText.viewActiveRequest(language))
             }
         },
         secondaryAction = {
             OutlinedButton(onClick = onProfileSetup, modifier = Modifier.fillMaxWidth()) {
-                Text("Edit consumer details")
+                Text(AppText.editConsumerDetails(language))
             }
-        }
+        },
+        quickActionsLabel = AppText.quickActions(language)
     )
 }
 
@@ -215,7 +228,8 @@ private fun BaseHomeScreen(
     features: List<HomeFeature>,
     onSettings: () -> Unit,
     primaryAction: @Composable () -> Unit,
-    secondaryAction: @Composable (() -> Unit)? = null
+    secondaryAction: @Composable (() -> Unit)? = null,
+    quickActionsLabel: String
 ) {
     Scaffold(
         topBar = {
@@ -251,7 +265,7 @@ private fun BaseHomeScreen(
                 item(span = { GridItemSpan(2) }) { action() }
             }
             item(span = { GridItemSpan(2) }) {
-                Text("Quick actions", style = MaterialTheme.typography.titleLarge)
+                Text(quickActionsLabel, style = MaterialTheme.typography.titleLarge)
             }
             items(features) { feature ->
                 FeatureCard(
@@ -268,6 +282,7 @@ private fun BaseHomeScreen(
 
 @Composable
 private fun ActiveRequestDialog(
+    language: AppLanguage,
     request: ConsumerMilletRequestEntity,
     onDismiss: () -> Unit,
     onViewRequest: () -> Unit,
@@ -276,7 +291,7 @@ private fun ActiveRequestDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Your millet request is still active") },
+        title = { Text(AppText.activeRequest(language)) },
         text = {
             Text(
                 "Farmers can still view your request for ${request.milletType} (${request.quantityKg}kg) in ${request.consumerLocation}. Keep it active until the deal is closed."
@@ -290,10 +305,10 @@ private fun ActiveRequestDialog(
         dismissButton = {
             Column {
                 TextButton(onClick = onMarkFulfilled) {
-                    Text("Mark fulfilled")
+                    Text(AppText.markFulfilled(language))
                 }
                 TextButton(onClick = onDelete) {
-                    Text("Delete request")
+                    Text(AppText.deleteRequest(language))
                 }
             }
         }

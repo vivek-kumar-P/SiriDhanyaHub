@@ -30,6 +30,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mindmatrix.siridhanyahub.ui.components.SettingsRow
 import com.mindmatrix.siridhanyahub.ui.i18n.AppLanguage
+import com.mindmatrix.siridhanyahub.ui.i18n.AppText
 import com.mindmatrix.siridhanyahub.ui.i18n.next
 import com.mindmatrix.siridhanyahub.viewmodel.SettingsViewModel
 
@@ -50,7 +51,7 @@ fun SettingsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Settings") },
+                title = { Text(AppText.settingsTitle(language)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
@@ -90,9 +91,9 @@ fun SettingsScreen(
                             )
                         }
                     } else {
-                        Text("Guest mode", style = MaterialTheme.typography.headlineSmall)
+                        Text(AppText.guestMode(language), style = MaterialTheme.typography.headlineSmall)
                         Text(
-                            text = "Login to create a farmer or consumer account profile.",
+                            text = AppText.guestModeDesc(language),
                             style = MaterialTheme.typography.bodyMedium
                         )
                     }
@@ -101,20 +102,16 @@ fun SettingsScreen(
             item {
                 SettingsRow(
                     icon = Icons.Default.Person,
-                    title = if (state.isLoggedIn) "Account profile" else "Login / Signup",
-                    subtitle = if (state.isLoggedIn) {
-                        "Edit your saved farmer or consumer details."
-                    } else {
-                        "Authenticate first, then complete the mandatory role profile."
-                    },
+                    title = if (state.isLoggedIn) AppText.accountProfile(language) else AppText.loginSignup(language),
+                    subtitle = if (state.isLoggedIn) AppText.accountProfileDesc(language) else AppText.loginSignupDesc(language),
                     onClick = if (state.isLoggedIn) onEditProfile else onAuth
                 )
             }
             item {
                 SettingsRow(
                     icon = Icons.Default.Language,
-                    title = "Language",
-                    subtitle = "Current: ${language.label}",
+                    title = AppText.language(language),
+                    subtitle = AppText.languageDesc(language),
                     onClick = { onLanguageChange(language.next()) }
                 )
             }
@@ -122,8 +119,8 @@ fun SettingsScreen(
                 item {
                     SettingsRow(
                         icon = Icons.Default.Analytics,
-                        title = "User analytics",
-                        subtitle = "Open your account activity and charts.",
+                        title = AppText.userAnalytics(language),
+                        subtitle = AppText.userAnalyticsDesc(language),
                         onClick = onAnalytics
                     )
                 }
@@ -131,8 +128,8 @@ fun SettingsScreen(
             item {
                 SettingsRow(
                     icon = Icons.Default.Info,
-                    title = "About",
-                    subtitle = "See the story, purpose, and playful feature walkthrough of the app.",
+                    title = AppText.about(language),
+                    subtitle = AppText.aboutDesc(language),
                     onClick = onAbout
                 )
             }
@@ -140,8 +137,8 @@ fun SettingsScreen(
                 item {
                     SettingsRow(
                         icon = Icons.AutoMirrored.Filled.Logout,
-                        title = "Logout",
-                        subtitle = "Sign out and return to browse mode.",
+                        title = AppText.logout(language),
+                        subtitle = AppText.logoutDesc(language),
                         onClick = viewModel::logout
                     )
                 }
@@ -149,8 +146,8 @@ fun SettingsScreen(
                 item {
                     SettingsRow(
                         icon = Icons.Default.Lock,
-                        title = "Browse mode",
-                        subtitle = "You can still browse Mandi Watch, Recipes, and Health without logging in.",
+                        title = AppText.browseMode(language),
+                        subtitle = AppText.browseModeDesc(language),
                         onClick = {}
                     )
                 }

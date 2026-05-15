@@ -61,7 +61,9 @@ class MarketplaceRepository @Inject constructor(
     private val consumerMilletRequestDao: ConsumerMilletRequestDao,
     private val farmerRequestMatchDao: FarmerRequestMatchDao,
     private val userProfileDao: UserProfileDao,
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val firestoreRepo: FirestoreMarketplaceRepository  // ADD THIS
+
 ) {
     private val repositoryScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -143,22 +145,34 @@ class MarketplaceRepository @Inject constructor(
         if (draft.grownArea.isBlank()) return Result.failure(IllegalArgumentException("Enter grown area"))
 
         val existing = farmerStockListingDao.getByFarmer(session.uid)
-        farmerStockListingDao.upsert(
-            FarmerStockListingEntity(
-                id = existing?.id ?: 0,
-                farmerUserId = session.uid,
-                marketCity = selection.marketCity,
-                marketPlace = selection.marketPlace,
-                selectedMarketRate = selection.selectedRate,
-                milletType = draft.milletType,
-                quantityAvailableKg = quantity,
-                growthDurationDays = growthDays,
-                grownArea = draft.grownArea,
-                stockNote = draft.stockNote,
-                isActive = true
-            )
+        val entity = FarmerStockListingEntity(
+            id = existing?.id ?: 0,
+            farmerUserId = session.uid,
+            marketCity = selection.marketCity,
+            marketPlace = selection.marketPlace,
+            selectedMarketRate = selection.selectedRate,
+            milletType = draft.milletType,
+            quantityAvailableKg = quantity,
+            growthDurationDays = growthDays,
+            grownArea = draft.grownArea,
+            stockNote = draft.stockNote,
+            isActive = true
         )
-        userProfileDao.upsert(profile.copy(stockStatus = "STOCK_AVAILABLE", updatedAt = System.currentTimeMillis()))
+
+        // Save to Room (local)
+        farmerStockListingDao.upsert(entity)
+        userProfileDao.upsert(
+            profile.copy(stockStatus = "STOCK_AVAILABLE", updatedAt = System.currentTimeMillis())
+        )
+
+        // Sync to Firestore (shared) — non-blocking, best effort
+        firestoreRepo.publishFarmerListing(
+            listing = entity,
+            farmerName = profile.fullName,
+            farmerMobile = profile.contactNumber,
+            farmerDistrict = profile.district
+        )
+
         return Result.success(Unit)
     }
 
@@ -185,24 +199,33 @@ class MarketplaceRepository @Inject constructor(
 
         val active = consumerMilletRequestDao.getActiveByConsumer(session.uid)
         val neededAtMillis = parseDateTimeMillis(draft.neededDate, draft.neededTime)
-        val requestId = consumerMilletRequestDao.upsert(
-            ConsumerMilletRequestEntity(
-                id = active?.id ?: 0,
-                consumerUserId = session.uid,
-                milletType = draft.milletType,
-                quantityKg = quantity,
-                neededAtMillis = neededAtMillis,
-                consumerLocation = draft.consumerLocation,
-                preferredSourceLocation = draft.preferredSourceLocation,
-                purpose = draft.purpose.takeIf { it.isNotBlank() },
-                status = "ACTIVE"
-            )
-        ).toInt()
+        val entity = ConsumerMilletRequestEntity(
+            id = active?.id ?: 0,
+            consumerUserId = session.uid,
+            milletType = draft.milletType,
+            quantityKg = quantity,
+            neededAtMillis = neededAtMillis,
+            consumerLocation = draft.consumerLocation,
+            preferredSourceLocation = draft.preferredSourceLocation,
+            purpose = draft.purpose.takeIf { it.isNotBlank() },
+            status = "ACTIVE"
+        )
 
+        // Save to Room (local)
+        val requestId = consumerMilletRequestDao.upsert(entity).toInt()
         val resolvedRequestId = if (requestId == 0) active?.id ?: 0 else requestId
         if (resolvedRequestId != 0) {
             rebuildMatchesForRequest(resolvedRequestId)
         }
+
+        // Sync to Firestore (shared) — non-blocking, best effort
+        firestoreRepo.publishConsumerRequest(
+            request = entity,
+            consumerName = profile.fullName,
+            consumerMobile = profile.contactNumber,
+            consumerDistrict = profile.district
+        )
+
         return Result.success(Unit)
     }
 
@@ -217,6 +240,8 @@ class MarketplaceRepository @Inject constructor(
             ?: return Result.failure(IllegalStateException("No active request found"))
         consumerMilletRequestDao.updateStatus(active.id, status)
         farmerRequestMatchDao.deleteByRequestId(active.id)
+        // Sync to Firestore
+        firestoreRepo.updateConsumerRequestStatus(session.uid, status)
         return Result.success(Unit)
     }
 
@@ -248,6 +273,14 @@ class MarketplaceRepository @Inject constructor(
             )
         }
     }
+
+    // Real-time Firestore feed for farmer to see ALL consumer requests
+    fun observeAllConsumerRequestsFromFirestore() =
+        firestoreRepo.observeAllActiveConsumerRequests()
+
+    // Real-time Firestore feed for consumer to see ALL farmer listings
+    fun observeAllFarmerListingsFromFirestore() =
+        firestoreRepo.observeAllActiveFarmerListings()
 
     private suspend fun rebuildMatchesForRequest(requestId: Int) {
         val request = consumerMilletRequestDao.getById(requestId) ?: return

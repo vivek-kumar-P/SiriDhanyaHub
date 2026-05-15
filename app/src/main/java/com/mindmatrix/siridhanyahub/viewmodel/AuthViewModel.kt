@@ -50,6 +50,13 @@ class AuthViewModel @Inject constructor(
         )
     }
 
+    fun setRegisterMode(isRegisterMode: Boolean) {
+        _uiState.value = _uiState.value.copy(
+            isRegisterMode = isRegisterMode,
+            errorMessage = null
+        )
+    }
+
     fun updateName(value: String) {
         _uiState.value = _uiState.value.copy(name = value)
     }
@@ -74,12 +81,22 @@ class AuthViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(isPasswordVisible = !_uiState.value.isPasswordVisible)
     }
 
-    fun fillTestCredentials() {
+    fun fillFarmerTestCredentials() {
         _uiState.value = _uiState.value.copy(
-            email = "test@gmail.com",
-            password = "test@123",
+            email = "tf@gmail.com",
+            password = "TestF@414",
             isGmailValid = true,
-            passwordStrength = authRepository.passwordStrength("test@123"),
+            passwordStrength = authRepository.passwordStrength("TestF@414"),
+            errorMessage = null
+        )
+    }
+
+    fun fillConsumerTestCredentials() {
+        _uiState.value = _uiState.value.copy(
+            email = "tc@gmail.com",
+            password = "TestC@414",
+            isGmailValid = true,
+            passwordStrength = authRepository.passwordStrength("TestC@414"),
             errorMessage = null
         )
     }
@@ -99,12 +116,31 @@ class AuthViewModel @Inject constructor(
             }
 
             result.onSuccess {
-                val route = userProfileRepository.resolvePostAuthRoute()
-                _uiState.value = _uiState.value.copy(
-                    errorMessage = null,
-                    isLoading = false,
-                    postAuthRoute = route
-                )
+                val routeResult = if (state.isRegisterMode && userProfileRepository.pendingOnboardingRole.value != null) {
+                    userProfileRepository.lockPendingRoleForCurrentUser().map { role ->
+                        if (role == com.mindmatrix.siridhanyahub.data.profile.UserRole.FARMER) {
+                            "farmerProfile"
+                        } else {
+                            "consumerProfile"
+                        }
+                    }
+                } else {
+                    userProfileRepository.clearPendingOnboardingRole()
+                    Result.success(userProfileRepository.resolvePostAuthRoute())
+                }
+
+                routeResult.onSuccess { route ->
+                    _uiState.value = _uiState.value.copy(
+                        errorMessage = null,
+                        isLoading = false,
+                        postAuthRoute = route
+                    )
+                }.onFailure { error ->
+                    _uiState.value = _uiState.value.copy(
+                        errorMessage = error.message ?: "Unable to continue onboarding",
+                        isLoading = false
+                    )
+                }
             }.onFailure { error ->
                 _uiState.value = _uiState.value.copy(
                     errorMessage = error.message ?: "Authentication failed",

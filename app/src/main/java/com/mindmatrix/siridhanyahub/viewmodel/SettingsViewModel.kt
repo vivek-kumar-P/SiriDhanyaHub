@@ -32,7 +32,7 @@ class SettingsViewModel @Inject constructor(
     ) { user, profile ->
         SettingsUiState(
             isLoggedIn = user != null,
-            userName = user?.name.orEmpty(),
+            userName = profile?.fullName?.takeIf { it.isNotBlank() } ?: user?.name.orEmpty(),
             userEmail = user?.email.orEmpty(),
             profile = profile,
             role = profile?.role.orEmpty(),

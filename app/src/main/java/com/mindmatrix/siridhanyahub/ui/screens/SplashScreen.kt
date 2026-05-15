@@ -22,15 +22,15 @@ import kotlinx.coroutines.delay
 @Composable
 fun SplashScreen(
     language: AppLanguage,
-    onContinue: () -> Unit,
+    onContinue: (String) -> Unit,
     viewModel: SplashViewModel = hiltViewModel()
 ) {
-    val isReady = viewModel.isReady.collectAsStateWithLifecycle()
+    val startRoute = viewModel.startRoute.collectAsStateWithLifecycle()
 
-    LaunchedEffect(isReady.value) {
-        if (isReady.value) {
+    LaunchedEffect(startRoute.value) {
+        startRoute.value?.let { route ->
             delay(1500)
-            onContinue()
+            onContinue(route)
         }
     }
 
@@ -50,9 +50,9 @@ fun SplashScreen(
             text = AppText.splashTagline(language),
             style = MaterialTheme.typography.titleMedium
         )
-        if (!isReady.value) {
+        if (startRoute.value == null) {
             Text(
-                text = "Preparing local app data...",
+                text = AppText.preparing(language),
                 style = MaterialTheme.typography.bodyMedium
             )
         }

@@ -61,6 +61,10 @@ android {
     }
 }
 
+kapt {
+    correctErrorTypes = true
+}
+
 dependencies {
     val composeBom = platform("androidx.compose:compose-bom:2024.06.00")
     val firebaseBom = platform("com.google.firebase:firebase-bom:33.1.2")
@@ -95,6 +99,7 @@ dependencies {
     ksp("androidx.room:room-compiler:2.6.1")
 
     implementation("com.google.firebase:firebase-auth-ktx")
+    implementation("com.google.firebase:firebase-database-ktx")
 
     implementation("io.coil-kt:coil-compose:2.7.0")
 

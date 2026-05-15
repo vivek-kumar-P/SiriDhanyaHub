@@ -1,14 +1,16 @@
 package com.mindmatrix.siridhanyahub.ui.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -28,88 +30,64 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mindmatrix.siridhanyahub.data.profile.KarnatakaProfileData
 import com.mindmatrix.siridhanyahub.data.profile.UserRole
 import com.mindmatrix.siridhanyahub.viewmodel.ProfileSetupViewModel
+import androidx.compose.foundation.layout.ColumnScope
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ProfileSetupScreen(
+fun RoleConfirmationScreen(
     onBack: () -> Unit,
-    onAuthRequired: () -> Unit,
-    onSaved: (Boolean) -> Unit,
+    onAuthRequired: (UserRole) -> Unit,
+    onConfirmed: (UserRole) -> Unit,
     viewModel: ProfileSetupViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val role = state.activeRole
-    val scrollState = rememberScrollState()
-    val isFormReadyToSubmit = when (role) {
-        UserRole.FARMER -> state.draft.fullName.trim().length >= 3
-                && state.draft.contactNumber.length == 10
-                && state.draft.address.trim().isNotEmpty()
-                && state.draft.district.isNotBlank()
-                && state.draft.taluk.isNotBlank()
-                && state.draft.village.isNotBlank()
-                && state.draft.aadhaarLast4.length == 4
-                && state.draft.pmKisanOrFarmerId.trim().isNotEmpty()
-                && state.draft.primaryMilletCategory.isNotBlank()
-                && (state.draft.landSizeAcres.toDoubleOrNull() ?: 0.0) > 0
-        UserRole.CONSUMER -> state.draft.fullName.trim().length >= 3
-                && state.draft.contactNumber.length == 10
-                && state.draft.address.trim().isNotEmpty()
-                && state.draft.district.isNotBlank()
-                && state.draft.taluk.isNotBlank()
-                && state.draft.village.isNotBlank()
-                && state.draft.aadhaarLast4.length == 4
-                && state.draft.preferredPurchaseLocation.trim().isNotEmpty()
-        null -> false
-    }
+    var selectedRoleValue by rememberSaveable { mutableStateOf(state.activeRole?.value) }
+    val selectedRole = UserRole.fromValue(selectedRoleValue)
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Account Profile") },
+                title = { Text("Choose account type") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
                     }
                 }
             )
         },
         bottomBar = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp)
-            ) {
-                Button(
-                    onClick = {
-                        if (state.isLoggedIn) {
-                            viewModel.save { success ->
-                                if (success) {
-                                    onSaved(state.activeRole == UserRole.FARMER)
+            if (state.isLoggedIn) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .navigationBarsPadding()
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                ) {
+                    Button(
+                        onClick = {
+                            selectedRole?.let { role ->
+                                viewModel.confirmRole(role) { success ->
+                                    if (success) onConfirmed(role)
                                 }
                             }
-                        } else {
-                            onAuthRequired()
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = !state.isSaving && isFormReadyToSubmit
-                ) {
-                    Text(
-                        if (state.isSaving) "Saving..."
-                        else if (!state.isLoggedIn) "Login to Continue"
-                        else "Submit / Confirm Profile"
-                    )
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !state.isSaving && selectedRole != null
+                    ) {
+                        Text(if (state.isSaving) "Locking account type..." else "Confirm permanent account type")
+                    }
                 }
             }
         }
@@ -118,199 +96,352 @@ fun ProfileSetupScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .verticalScroll(scrollState)
                 .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Text(
-                "Step 1: Choose your account type",
+                "Choose whether this account will permanently act as a farmer or a consumer.",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
-
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(
-                    onClick = { viewModel.primeRole(UserRole.FARMER) },
-                    modifier = Modifier.fillMaxWidth(),
-                    border = if (role == UserRole.FARMER) 
-                        androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary) 
-                        else androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
-                ) {
-                    Text(if (role == UserRole.FARMER) "✓ Selected: I am a Farmer" else "I am a Farmer")
+            Text(
+                "Warning: once confirmed, this account type cannot be changed later. You can edit details in Settings, but you cannot switch between farmer and consumer.",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.error
+            )
+            OutlinedButton(
+                onClick = {
+                    if (state.isLoggedIn) {
+                        selectedRoleValue = UserRole.FARMER.value
+                    } else {
+                        onAuthRequired(UserRole.FARMER)
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+                border = if (selectedRole == UserRole.FARMER) {
+                    BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
+                } else {
+                    BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
                 }
-                OutlinedButton(
-                    onClick = { viewModel.primeRole(UserRole.CONSUMER) },
-                    modifier = Modifier.fillMaxWidth(),
-                    border = if (role == UserRole.CONSUMER) 
-                        androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary) 
-                        else androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
-                ) {
-                    Text(if (role == UserRole.CONSUMER) "✓ Selected: I am a Consumer" else "I am a Consumer")
-                }
+            ) {
+                Text(if (selectedRole == UserRole.FARMER) "Farmer selected" else "Farmer account")
             }
-
-            if (role != null) {
+            OutlinedButton(
+                onClick = {
+                    if (state.isLoggedIn) {
+                        selectedRoleValue = UserRole.CONSUMER.value
+                    } else {
+                        onAuthRequired(UserRole.CONSUMER)
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+                border = if (selectedRole == UserRole.CONSUMER) {
+                    BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
+                } else {
+                    BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+                }
+            ) {
+                Text(if (selectedRole == UserRole.CONSUMER) "Consumer selected" else "Consumer account")
+            }
+            state.message?.let {
                 Text(
-                    "Step 2: Basic Information",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(top = 8.dp)
+                    text = it,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodyMedium
                 )
-
-                OutlinedTextField(
-                    value = state.draft.fullName,
-                    onValueChange = viewModel::updateFullName,
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Full Name *") },
-                    singleLine = true
-                )
-
-                OutlinedTextField(
-                    value = state.draft.contactNumber,
-                    onValueChange = viewModel::updateContactNumber,
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Mobile Number (10 digits) *") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                    singleLine = true
-                )
-
-                OutlinedTextField(
-                    value = state.draft.address,
-                    onValueChange = viewModel::updateAddress,
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Address / Place *") }
-                )
-
-                LocationDropdown(
-                    label = "District *",
-                    selectedOption = state.draft.district,
-                    options = KarnatakaProfileData.districts,
-                    onOptionSelected = viewModel::updateDistrict
-                )
-
-                LocationDropdown(
-                    label = "Taluk *",
-                    selectedOption = state.draft.taluk,
-                    options = KarnatakaProfileData.taluksForDistrict(state.draft.district),
-                    onOptionSelected = viewModel::updateTaluk,
-                    enabled = state.draft.district.isNotBlank()
-                )
-
-                LocationDropdown(
-                    label = "Village *",
-                    selectedOption = state.draft.village,
-                    options = KarnatakaProfileData.villagesForTaluk(state.draft.taluk),
-                    onOptionSelected = viewModel::updateVillage,
-                    enabled = state.draft.taluk.isNotBlank()
-                )
-
-                OutlinedTextField(
-                    value = state.draft.aadhaarLast4,
-                    onValueChange = viewModel::updateAadhaarLast4,
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Aadhaar Reference (Last 4 digits) *") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    singleLine = true
-                )
-
-                if (role == UserRole.FARMER) {
-                    Text(
-                        "Step 3: Farmer Specific Details",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(top = 8.dp)
-                    )
-
-                    OutlinedTextField(
-                        value = state.draft.pmKisanOrFarmerId,
-                        onValueChange = viewModel::updatePmKisanOrFarmerId,
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text("PM Kisan ID / Farmer ID *") },
-                        singleLine = true
-                    )
-
-                    LocationDropdown(
-                        label = "Primary Millet Category *",
-                        selectedOption = state.draft.primaryMilletCategory,
-                        options = KarnatakaProfileData.milletTypes,
-                        onOptionSelected = viewModel::updatePrimaryMilletCategory
-                    )
-
-                    OutlinedTextField(
-                        value = state.draft.landSizeAcres,
-                        onValueChange = viewModel::updateLandSizeAcres,
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text("Land Size (in Acres) *") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        singleLine = true
-                    )
-                }
-
-                if (role == UserRole.CONSUMER) {
-                    Text(
-                        "Step 3: Consumer Preferences",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(top = 8.dp)
-                    )
-
-                    OutlinedTextField(
-                        value = state.draft.preferredPurchaseLocation,
-                        onValueChange = viewModel::updatePreferredPurchaseLocation,
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text("Preferred Purchase Location *") },
-                        singleLine = true
-                    )
-                }
-
-                state.message?.let {
-                    Text(
-                        text = it,
-                        color = if (it.startsWith("Profile saved"))
-                            MaterialTheme.colorScheme.primary
-                        else
-                            MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Medium,
-                        modifier = Modifier.padding(top = 8.dp)
-                    )
-                }
             }
-
-            Spacer(modifier = Modifier.height(32.dp))
+            if (!state.isLoggedIn) {
+                Text(
+                    text = "Choosing a role takes you to account creation first. After signup, you will continue to the matching profile form.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
         }
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LocationDropdown(
-    label: String,
-    selectedOption: String,
-    options: List<String>,
-    onOptionSelected: (String) -> Unit,
-    enabled: Boolean = true
+fun FarmerProfileFormScreen(
+    onBack: () -> Unit,
+    onSaved: () -> Unit,
+    viewModel: ProfileSetupViewModel = hiltViewModel()
 ) {
-    var expanded by remember { mutableStateOf(false) }
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val taluks = KarnatakaProfileData.taluksForDistrict(state.draft.district)
+    val villages = KarnatakaProfileData.villagesForTaluk(state.draft.taluk)
 
+    ProfileFormScaffold(
+        title = if (state.isProfileComplete) "Edit farmer details" else "Farmer onboarding",
+        onBack = onBack
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .weight(1f, fill = true)
+                    .verticalScroll(rememberScrollState())
+                    .imePadding(),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    "Fill this farmer profile once to activate your farmer account. Later, you can edit these details from Settings.",
+                    style = MaterialTheme.typography.bodyLarge
+                )
+                FarmerCommonFields(state, taluks, villages, viewModel)
+                OutlinedTextField(
+                    value = state.draft.pmKisanOrFarmerId,
+                    onValueChange = viewModel::updatePmKisanOrFarmerId,
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("PM Kisan ID / Farmer ID") },
+                    placeholder = { Text("e.g. PMKISAN1234567890") },
+                    supportingText = {
+                        Text("Enter your PM-KISAN Beneficiary ID (PMKISAN + 10 digits) or Karnataka Farmer ID (KA + 8-10 digits)")
+                    },
+                    isError = state.draft.pmKisanOrFarmerId.isNotBlank() &&
+                            !state.draft.pmKisanOrFarmerId.trim().matches(
+                                Regex("^(PMKISAN\\d{10}|KA\\d{8,10})$", RegexOption.IGNORE_CASE)
+                            ),
+                    singleLine = true
+                )
+                SelectorField(
+                    label = "Primary millet category",
+                    value = state.draft.primaryMilletCategory,
+                    options = KarnatakaProfileData.milletTypes,
+                    onValueSelected = viewModel::updatePrimaryMilletCategory
+                )
+                OutlinedTextField(
+                    value = state.draft.landSizeAcres,
+                    onValueChange = viewModel::updateLandSizeAcres,
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Land size in acres") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    singleLine = true
+                )
+                MessageBlock(state.message)
+            }
+            Button(
+                onClick = { viewModel.saveFarmer { success -> if (success) onSaved() } },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .imePadding(),
+                enabled = !state.isSaving && state.farmerFormReady
+            ) {
+                Text(if (state.isSaving) "Saving..." else "Save farmer profile")
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ConsumerProfileFormScreen(
+    onBack: () -> Unit,
+    onSaved: () -> Unit,
+    viewModel: ProfileSetupViewModel = hiltViewModel()
+) {
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val taluks = KarnatakaProfileData.taluksForDistrict(state.draft.district)
+    val villages = KarnatakaProfileData.villagesForTaluk(state.draft.taluk)
+
+    ProfileFormScaffold(
+        title = if (state.isProfileComplete) "Edit consumer details" else "Consumer onboarding",
+        onBack = onBack
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .weight(1f, fill = false)
+                    .verticalScroll(rememberScrollState())
+                    .imePadding(),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    "Fill this consumer profile once to activate your consumer account. Later, you can edit these details from Settings.",
+                    style = MaterialTheme.typography.bodyLarge
+                )
+                ConsumerCommonFields(state, taluks, villages, viewModel)
+                SelectorField(
+                    label = "Preferred purchase location",
+                    value = state.draft.preferredPurchaseLocation,
+                    options = KarnatakaProfileData.districts,
+                    onValueSelected = viewModel::updatePreferredPurchaseLocation
+                )
+                MessageBlock(state.message)
+            }
+            Button(
+                onClick = { viewModel.saveConsumer { success -> if (success) onSaved() } },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .imePadding(),
+                enabled = !state.isSaving && state.consumerFormReady
+            ) {
+                Text(if (state.isSaving) "Saving..." else "Save consumer profile")
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ProfileFormScaffold(
+    title: String,
+    onBack: () -> Unit,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(title) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
+                    }
+                }
+            )
+        }
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .padding(horizontal = 20.dp, vertical = 12.dp),
+            content = content
+        )
+    }
+}
+
+@Composable
+private fun FarmerCommonFields(
+    state: com.mindmatrix.siridhanyahub.viewmodel.ProfileSetupUiState,
+    taluks: List<String>,
+    villages: List<String>,
+    viewModel: ProfileSetupViewModel
+) {
+    CommonProfileFields(state, taluks, villages, viewModel)
+}
+
+@Composable
+private fun ConsumerCommonFields(
+    state: com.mindmatrix.siridhanyahub.viewmodel.ProfileSetupUiState,
+    taluks: List<String>,
+    villages: List<String>,
+    viewModel: ProfileSetupViewModel
+) {
+    CommonProfileFields(state, taluks, villages, viewModel)
+}
+
+@Composable
+private fun CommonProfileFields(
+    state: com.mindmatrix.siridhanyahub.viewmodel.ProfileSetupUiState,
+    taluks: List<String>,
+    villages: List<String>,
+    viewModel: ProfileSetupViewModel
+) {
+    OutlinedTextField(
+        value = state.draft.fullName,
+        onValueChange = viewModel::updateFullName,
+        modifier = Modifier.fillMaxWidth(),
+        label = { Text("Full name") },
+        singleLine = true
+    )
+    OutlinedTextField(
+        value = state.draft.contactNumber,
+        onValueChange = viewModel::updateContactNumber,
+        modifier = Modifier.fillMaxWidth(),
+        label = { Text("Mobile number") },
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+        singleLine = true
+    )
+    OutlinedTextField(
+        value = state.draft.address,
+        onValueChange = viewModel::updateAddress,
+        modifier = Modifier.fillMaxWidth(),
+        label = { Text("Address / place") }
+    )
+    SelectorField(
+        label = "District",
+        value = state.draft.district,
+        options = KarnatakaProfileData.districts,
+        onValueSelected = viewModel::updateDistrict
+    )
+    SelectorField(
+        label = "Taluk",
+        value = state.draft.taluk,
+        options = taluks,
+        enabled = state.draft.district.isNotBlank(),
+        placeholder = if (state.draft.district.isBlank()) "Select district first" else "Choose taluk",
+        onValueSelected = viewModel::updateTaluk
+    )
+    SelectorField(
+        label = "Village / local area",
+        value = state.draft.village,
+        options = villages,
+        enabled = state.draft.taluk.isNotBlank(),
+        placeholder = if (state.draft.taluk.isBlank()) "Select taluk first" else "Choose village",
+        onValueSelected = viewModel::updateVillage
+    )
+    OutlinedTextField(
+        value = state.draft.aadhaarLast4,
+        onValueChange = viewModel::updateAadhaarLast4,
+        modifier = Modifier.fillMaxWidth(),
+        label = { Text("Aadhaar last 4 digits") },
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+        singleLine = true
+    )
+}
+
+@Composable
+private fun MessageBlock(message: String?) {
+    if (!message.isNullOrBlank()) {
+        Text(
+            text = message,
+            color = if (message.contains("activated", ignoreCase = true) || message.contains("saved", ignoreCase = true)) {
+                MaterialTheme.colorScheme.primary
+            } else {
+                MaterialTheme.colorScheme.error
+            },
+            style = MaterialTheme.typography.bodyMedium
+        )
+    }
+    Box(modifier = Modifier.height(8.dp))
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SelectorField(
+    label: String,
+    value: String,
+    options: List<String>,
+    enabled: Boolean = true,
+    placeholder: String = "Select an option",
+    onValueSelected: (String) -> Unit
+) {
+    var expanded by rememberSaveable(label) { mutableStateOf(false) }
     ExposedDropdownMenuBox(
         expanded = expanded && enabled,
-        onExpandedChange = { if (enabled) expanded = !expanded },
-        modifier = Modifier.fillMaxWidth()
+        onExpandedChange = { if (enabled) expanded = !expanded }
     ) {
         OutlinedTextField(
-            value = selectedOption,
+            value = value,
             onValueChange = {},
-            readOnly = true,
-            label = { Text(label) },
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
             modifier = Modifier
                 .menuAnchor()
                 .fillMaxWidth(),
-            enabled = enabled
+            label = { Text(label) },
+            placeholder = { Text(placeholder) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            readOnly = true,
+            enabled = enabled,
+            singleLine = true
         )
-
         ExposedDropdownMenu(
             expanded = expanded && enabled,
             onDismissRequest = { expanded = false }
@@ -319,10 +450,9 @@ fun LocationDropdown(
                 DropdownMenuItem(
                     text = { Text(option) },
                     onClick = {
-                        onOptionSelected(option)
+                        onValueSelected(option)
                         expanded = false
-                    },
-                    contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding
+                    }
                 )
             }
         }

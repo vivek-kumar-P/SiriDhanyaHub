@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.mindmatrix.siridhanyahub.data.local.entity.ConsumerMilletRequestEntity
 import com.mindmatrix.siridhanyahub.data.profile.UserRole
 import com.mindmatrix.siridhanyahub.data.repository.ConsumerRequestDraft
+import com.mindmatrix.siridhanyahub.data.repository.FirestoreFarmerListing
 import com.mindmatrix.siridhanyahub.data.repository.MarketplaceRepository
 import com.mindmatrix.siridhanyahub.data.repository.UserProfileRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -22,7 +23,8 @@ data class ConsumerRequestUiState(
     val activeRole: UserRole? = null,
     val activeRequest: ConsumerMilletRequestEntity? = null,
     val isSaving: Boolean = false,
-    val message: String? = null
+    val message: String? = null,
+    val availableFarmers: List<FirestoreFarmerListing> = emptyList()
 )
 
 @HiltViewModel
@@ -30,6 +32,7 @@ class DirectBuyViewModel @Inject constructor(
     private val marketplaceRepository: MarketplaceRepository,
     userProfileRepository: UserProfileRepository
 ) : ViewModel() {
+
     private val isSaving = MutableStateFlow(false)
     private val message = MutableStateFlow<String?>(null)
 
@@ -37,21 +40,35 @@ class DirectBuyViewModel @Inject constructor(
         marketplaceRepository.consumerDraft,
         marketplaceRepository.activeConsumerRequest,
         userProfileRepository.activeProfile.map { UserRole.fromValue(it?.role) },
-        isSaving,
-        message
-    ) { draft, request, role, isSaving, message ->
+        marketplaceRepository.observeAllFarmerListingsFromFirestore()
+    ) { draft, request, role, farmerListings ->
+        // Filter farmers by selected millet type if one is chosen
+        val filtered = if (draft.milletType.isBlank()) {
+            farmerListings
+        } else {
+            farmerListings.filter {
+                it.milletType.equals(draft.milletType, ignoreCase = true)
+            }
+        }
         ConsumerRequestUiState(
             draft = draft,
             activeRole = role,
             activeRequest = request,
-            isSaving = isSaving,
-            message = message
+            isSaving = isSaving.value,
+            message = message.value,
+            availableFarmers = filtered
         )
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ConsumerRequestUiState())
+    }.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5_000),
+        ConsumerRequestUiState()
+    )
 
     init {
         viewModelScope.launch {
-            marketplaceRepository.hydrateConsumerDraft(marketplaceRepository.loadActiveRequestForCurrentUser())
+            marketplaceRepository.hydrateConsumerDraft(
+                marketplaceRepository.loadActiveRequestForCurrentUser()
+            )
         }
     }
 
@@ -81,7 +98,8 @@ class DirectBuyViewModel @Inject constructor(
             isSaving.value = true
             val result = marketplaceRepository.saveConsumerRequest()
             isSaving.value = false
-            message.value = result.exceptionOrNull()?.message ?: "Request is now active for nearby farmers"
+            message.value = result.exceptionOrNull()?.message
+                ?: "Request is now active for nearby farmers"
             if (result.isSuccess) onSaved()
         }
     }

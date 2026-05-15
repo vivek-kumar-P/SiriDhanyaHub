@@ -7,6 +7,7 @@ import androidx.room.PrimaryKey
 data class UserProfileEntity(
     @PrimaryKey val userId: String,
     val role: String,
+    val roleLocked: Boolean = false,
     val fullName: String,
     val address: String,
     val contactNumber: String,
@@ -18,7 +19,7 @@ data class UserProfileEntity(
     val primaryMilletCategory: String? = null,
     val landSizeAcres: Double? = null,
     val preferredPurchaseLocation: String? = null,
-    val profileCompleted: Boolean = true,
+    val profileCompleted: Boolean = false,
     val stockStatus: String = "NO_STOCK",
     val updatedAt: Long = System.currentTimeMillis()
 )

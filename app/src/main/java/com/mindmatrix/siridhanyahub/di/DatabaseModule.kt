@@ -7,6 +7,7 @@ import com.mindmatrix.siridhanyahub.data.local.dao.FarmerRequestMatchDao
 import com.mindmatrix.siridhanyahub.data.local.dao.FarmerStockListingDao
 import com.mindmatrix.siridhanyahub.data.local.SiriDhanyaDatabase
 import com.mindmatrix.siridhanyahub.data.local.dao.FavouriteDao
+import com.mindmatrix.siridhanyahub.data.local.dao.FeedbackDao
 import com.mindmatrix.siridhanyahub.data.local.dao.FpoDao
 import com.mindmatrix.siridhanyahub.data.local.dao.HealthBenefitDao
 import com.mindmatrix.siridhanyahub.data.local.dao.PriceDao
@@ -70,4 +71,8 @@ object DatabaseModule {
     @Provides
     fun provideFarmerRequestMatchDao(database: SiriDhanyaDatabase): FarmerRequestMatchDao =
         database.farmerRequestMatchDao()
+
+    @Provides
+    fun provideFeedbackDao(database: SiriDhanyaDatabase): FeedbackDao =
+        database.feedbackDao()
 }

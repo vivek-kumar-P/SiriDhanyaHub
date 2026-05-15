@@ -42,7 +42,7 @@ class HomeViewModel @Inject constructor(
         marketplaceRepository.activeConsumerRequest
     ) { user, profile, listing, activeRequest ->
         HomeUiState(
-            userName = user?.name ?: "Guest",
+            userName = profile?.fullName?.takeIf { it.isNotBlank() } ?: user?.name ?: "Guest",
             isLoggedIn = user != null,
             activeRole = UserRole.fromValue(profile?.role),
             activeProfile = profile,

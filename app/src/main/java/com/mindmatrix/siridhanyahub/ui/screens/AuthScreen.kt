@@ -18,7 +18,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -28,6 +27,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
@@ -41,11 +41,16 @@ import com.mindmatrix.siridhanyahub.viewmodel.AuthViewModel
 @Composable
 fun AuthScreen(
     language: AppLanguage,
+    initialRegisterMode: Boolean,
     onBack: () -> Unit,
     onEnterApp: (String?) -> Unit,
     viewModel: AuthViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+
+    LaunchedEffect(initialRegisterMode) {
+        viewModel.setRegisterMode(initialRegisterMode)
+    }
 
     LaunchedEffect(state.postAuthRoute) {
         state.postAuthRoute?.let { route ->
@@ -83,20 +88,20 @@ fun AuthScreen(
                 style = MaterialTheme.typography.bodyLarge
             )
 
-            if (!state.isRegisterMode) {
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text("Test login helper", style = MaterialTheme.typography.titleMedium)
-                        Text("Email: test@gmail.com")
-                        Text("Password: test@123")
-                        OutlinedButton(onClick = viewModel::fillTestCredentials) {
-                            Text("Use test credentials")
-                        }
-                    }
-                }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                TestAccountCard(
+                    title = "Test Farmer Account",
+                    modifier = Modifier.weight(1f),
+                    onClick = viewModel::fillFarmerTestCredentials
+                )
+                TestAccountCard(
+                    title = "Test Consumer Account",
+                    modifier = Modifier.weight(1f),
+                    onClick = viewModel::fillConsumerTestCredentials
+                )
             }
 
             if (state.isRegisterMode) {
@@ -131,11 +136,7 @@ fun AuthScreen(
                 onValueChange = viewModel::updatePassword,
                 modifier = Modifier.fillMaxWidth(),
                 label = { Text("Password") },
-                visualTransformation = if (state.isPasswordVisible) {
-                    VisualTransformation.None
-                } else {
-                    PasswordVisualTransformation()
-                },
+                visualTransformation = if (state.isPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                 trailingIcon = {
                     IconButton(onClick = viewModel::togglePasswordVisibility) {
                         Icon(
@@ -144,9 +145,7 @@ fun AuthScreen(
                         )
                     }
                 },
-                supportingText = {
-                    Text("Strength: ${state.passwordStrength.label}")
-                },
+                supportingText = { Text("Strength: ${state.passwordStrength.label}") },
                 singleLine = true
             )
 
@@ -185,6 +184,23 @@ fun AuthScreen(
                     Text(if (state.isRegisterMode) "Already have an account?" else "Create a new account")
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun TestAccountCard(
+    title: String,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    Card(modifier = modifier, onClick = onClick) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text("Tap to auto-fill credentials", style = MaterialTheme.typography.bodySmall)
         }
     }
 }

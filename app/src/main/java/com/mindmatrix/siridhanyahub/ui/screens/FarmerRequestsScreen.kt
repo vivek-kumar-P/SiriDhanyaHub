@@ -24,6 +24,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.mindmatrix.siridhanyahub.ui.i18n.AppLanguage
+import com.mindmatrix.siridhanyahub.ui.i18n.AppText
 import com.mindmatrix.siridhanyahub.ui.theme.WheatSurface
 import com.mindmatrix.siridhanyahub.viewmodel.FarmerRequestsViewModel
 import java.text.SimpleDateFormat
@@ -33,6 +35,7 @@ import java.util.Locale
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FarmerRequestsScreen(
+    language: AppLanguage,
     onBack: () -> Unit,
     viewModel: FarmerRequestsViewModel = hiltViewModel()
 ) {
@@ -41,7 +44,7 @@ fun FarmerRequestsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Farmer Requests") },
+                title = { Text(AppText.consumerRequestsTitle(language)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
@@ -59,36 +62,48 @@ fun FarmerRequestsScreen(
         ) {
             if (!state.isFarmer) {
                 item {
-                    Text("Only farmer accounts can open this page.", style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        AppText.farmerOnlyPage(language),
+                        style = MaterialTheme.typography.bodyLarge
+                    )
                 }
                 return@LazyColumn
             }
+
             item {
                 Text(
-                    "Consumers will contact you outside the app using the mobile number shown here. This page is your in-app notification board for active millet requests.",
+                    AppText.consumerRequestsHint(language),
                     style = MaterialTheme.typography.bodyLarge
                 )
             }
+
             if (state.items.isEmpty()) {
                 item {
-                    Text("No matching consumer requests yet. Publish stock first and check back soon.", style = MaterialTheme.typography.bodyMedium)
+                    Text(
+                        AppText.noConsumerRequestsYet(language),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
                 }
             }
-            items(state.items, key = { it.matchId }) { item ->
+
+            items(state.items, key = { it.consumerUserId }) { request ->
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(containerColor = WheatSurface)
                 ) {
-                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text(item.consumerName, style = MaterialTheme.typography.titleLarge)
-                        Text("Mobile: ${item.consumerMobile}", style = MaterialTheme.typography.bodyLarge)
-                        Text("Location: ${item.consumerDistrict} • ${item.consumerAddress}", style = MaterialTheme.typography.bodyMedium)
-                        Text("Millet: ${item.milletType} • ${item.quantityKg}kg", style = MaterialTheme.typography.bodyMedium)
-                        Text("Needed at: ${formatDate(item.neededAtMillis)}", style = MaterialTheme.typography.bodyMedium)
-                        Text("Preferred source: ${item.preferredSourceLocation}", style = MaterialTheme.typography.bodyMedium)
-                        Text("Matched from: ${item.matchLocationContext}", style = MaterialTheme.typography.bodySmall)
-                        item.purpose?.takeIf { it.isNotBlank() }?.let { purpose ->
-                            Text("Purpose: $purpose", style = MaterialTheme.typography.bodySmall)
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text(request.consumerName, style = MaterialTheme.typography.titleLarge)
+                        Text("Mobile: ${request.consumerMobile}", style = MaterialTheme.typography.bodyLarge)
+                        Text("District: ${request.consumerDistrict}", style = MaterialTheme.typography.bodyMedium)
+                        Text("Location: ${request.consumerLocation}", style = MaterialTheme.typography.bodyMedium)
+                        Text("Millet: ${request.milletType} • ${request.quantityKg}kg", style = MaterialTheme.typography.bodyMedium)
+                        Text("Needed by: ${formatDate(request.neededAtMillis)}", style = MaterialTheme.typography.bodyMedium)
+                        Text("Preferred source: ${request.preferredSourceLocation}", style = MaterialTheme.typography.bodyMedium)
+                        request.purpose.takeIf { it.isNotBlank() }?.let {
+                            Text("Purpose: $it", style = MaterialTheme.typography.bodySmall)
                         }
                     }
                 }
@@ -97,6 +112,5 @@ fun FarmerRequestsScreen(
     }
 }
 
-private fun formatDate(timestamp: Long): String {
-    return SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault()).format(Date(timestamp))
-}
+private fun formatDate(timestamp: Long): String =
+    SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault()).format(Date(timestamp))
